@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Classification with BERT</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Text Classification with BERT</h1>
+            <p>Enter text to classify into categories like Art, Food, History, and more!</p>
+        </header>
+
+        <div class="input-section">
+            <form id="prediction-form">
+                <textarea id="input-text" placeholder="Enter your text here..." rows="5" required></textarea>
+                <button type="submit">Classify Text</button>
+            </form>
+        </div>
+
+        <div class="result-section" id="result-section" style="display: none;">
+            <h2>Prediction Results</h2>
+            <div id="result">
+                <p><strong>Predicted Class:</strong> <span id="predicted-class"></span></p>
+                <h3>Class Probabilities</h3>
+                <div id="probabilities"></div>
+                <canvas id="prob-chart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.getElementById('prediction-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = document.getElementById('input-text').value;
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ texts: [text] })
+                });
+                const data = await response.json();
+
+                const prediction = data.predictions[0];
+                const predictedClass = prediction['Predicted Class'];
+                const probabilities = prediction['Probabilities'];
+
+                // Display results
+                document.getElementById('predicted-class').innerText = predictedClass;
+                const probDiv = document.getElementById('probabilities');
+                probDiv.innerHTML = '';
+                for (const [label, prob] of Object.entries(probabilities)) {
+                    probDiv.innerHTML += `<p>${label}: ${prob.toFixed(4)}</p>`;
+                }
+
+                // Show result section
+                document.getElementById('result-section').style.display = 'block';
+
+                // Create bar chart
+                const ctx = document.getElementById('prob-chart').getContext('2d');
+                if (window.myChart) window.myChart.destroy(); // Destroy previous chart
+                window.myChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(probabilities),
+                        datasets: [{
+                            label: 'Probability',
+                            data: Object.values(probabilities),
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: { beginAtZero: true, max: 1 },
+                            x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while making the prediction.');
+            }
+        });
+    </script>
+</body>
+</html>
